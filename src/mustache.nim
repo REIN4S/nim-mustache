@@ -46,6 +46,8 @@ when isMainModule:
 
   var contextData: string
   var tpl: string
+  var searchDir: seq[string] = @["./"]
+
   if args.len == 1:
     contextData = stdin.readAll()
     try:
@@ -53,6 +55,30 @@ when isMainModule:
     except IOError:
       stderr.writeLine(fmt"unable read template {args[0]}.")
       quit(1)
+
+    var c = Context()
+    for key, value in parseJson(contextData).pairs:
+      c[key] = value
+    echo(tpl.render(c))
+
+  elif args.len == 2:
+    try:
+      contextData = readFile(args[0])
+    except IOError:
+      stderr.writeLine(fmt"unable read template {args[0]}.")
+      quit(1)
+
+    try:
+      tpl = readFile(args[1])
+    except IOError:
+      stderr.writeLine(fmt"unable load data from {args[1]}.")
+      quit(1)
+
+    var c = Context()
+    for key, value in parseJson(contextData).pairs:
+      c[key] = value
+    echo(tpl.render(c))
+
   else:
     try:
       contextData = readFile(args[0])
@@ -66,8 +92,15 @@ when isMainModule:
       stderr.writeLine(fmt"unable load data from {args[1]}.")
       quit(1)
 
-  var c = Context()
-  for key, value in parseJson(contextData).pairs:
-    c[key] = value
+    try:
+      for path in walkDirRec(args[2], {pcDir}, {pcDir}, false):
+        searchDir.add(path)
+        
+    except IoError:
+      stderr.writeLine(fmt"unable wark directory from {args[2]}.")
+      quit(1)
 
-  echo(tpl.render(c))
+    var c = newContext(searchDirs = searchDir)
+    for key, value in parseJson(contextData).pairs:
+      c[key] = value
+    echo(tpl.render(c))
